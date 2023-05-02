@@ -3,6 +3,8 @@ extern crate libc;
 use libc::{getpid, kill};
 use std::{env, fs, io::stdin, io::Error, io::ErrorKind};
 
+mod game;
+
 #[allow(non_camel_case_types, dead_code)]
 enum Commands {
     solver(String),
@@ -105,18 +107,23 @@ fn print_input(unsorted: &String) {
         selection_sort(&unsorted)
     )
 }
+fn handle_game(){
+    match game::run_game(){
+        _ => println!("ole"),
+    }
+}
 fn main() {
     let input = match parse_arguments() {
         Ok(s) => s,
         Err(e) => panic!("{}", e),
     };
 
-    println!("Implemented: <solver> <quit> <input>");
+    println!("Implemented: <solver> <quit> <input> <game>");
     loop {
         let mut line = String::new();
         println!("##########     Cursed app: digues algo idk:     ##########");
         match stdin().read_line(&mut line) {
-            Ok(_) =>    it,
+            Ok(it) => it,
             Err(e) => panic!("{}", e),
         };
 
@@ -124,6 +131,7 @@ fn main() {
             "quit" => quit(),
             "solver" => do_solver(),
             "input" => print_input(&input),
+            "game" => handle_game(),
             _ => println!("\n{} ta puta mare crack.\n", line),
         }
     }
