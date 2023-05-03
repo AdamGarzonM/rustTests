@@ -108,9 +108,12 @@ fn print_input(unsorted: &String) {
     )
 }
 fn handle_game(){
+    /*    
     match game::run_game(){
         _ => println!("ole"),
     }
+    */
+    game::run_game()
 }
 fn main() {
     let input = match parse_arguments() {
