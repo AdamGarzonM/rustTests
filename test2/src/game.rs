@@ -1,55 +1,100 @@
 use std::{thread::sleep, time::Duration, thread, io, io::Write, io::stdin, io::Error};
 use std::sync::{Arc, Mutex, mpsc::channel, mpsc::Sender, mpsc::Receiver};
 
+const COLLECT: &str= "collect";
+const QUIT: &str = "quit";
+ 
+#[derive(Debug)]
+struct ThreadHandler{
+    i: i128,
+    tx: Sender<i128>,
+    rx: Receiver<String>,
+    mutex: Arc<Mutex<i128>>,
+}
+//self.tx.send(self.i).unwrap()
+impl ThreadHandler{
+    fn run(&mut self){
+        loop{
+            self.i += 1;
+            match self.rx.try_recv(){
+                Ok(command) => self.thread_commands_handler(command),
+                _ => {} 
+            };
+            sleep(Duration::from_secs(1));
+        }
+    }
+
+    fn thread_commands_handler(&mut self, command: String){
+        match &*command{
+            COLLECT => self.thread_handle_collect(),
+            _ => panic!("thread_commands_handler panics"),
+        }
+    }
+
+    fn thread_handle_collect(&mut self){
+        self.tx.send(self.i).unwrap();
+        self.i = 0;
+    }
+}
+
 fn bad_line(line: String){
     println!("<{}> No es una comanda acceptada.", line);
     handle_cmd();
 }
 
-
-fn handle_cmd() -> Result<i32, Error>{
+fn handle_cmd() -> Result<&'static str, Error>{
     let mut line = String::new();
-    println!("lolxd?: ");
+    println!("Introduir comanda:");
     stdin().read_line(&mut line)?;
 
     match line.trim(){
-        "collect" => return Ok(1),
+        "collect" => return Ok(COLLECT),
+        "quit" => return Ok(QUIT),
         _ => bad_line(line),
     };
-    panic!("mal");//this panics ?¿
+    panic!("mal");
 }
 
-fn thread_handler(i: &mut i32, tx: Sender<i32>, rx: Receiver<i32>, mutex: &Arc<Mutex<i32>>){
-    loop{
-        *i += 1;
-        sleep(Duration::from_secs(1));
-    }
+fn handle_collect(main_Recv: &Receiver<i128>, main_Send: &Sender<String>, points: &mut i128){
+    main_Send.send(COLLECT.to_string()).unwrap();
+    (*points) += main_Recv.recv().unwrap();
 }
 
 pub fn run_game(){
-    let mut i = 0;
+    let mut points = 0i128;
     let interval = Duration::from_secs(1);
-    let main_mutex_pointer = Arc::new(Mutex::new(0));
+
+    let main_mutex_pointer = Arc::new(Mutex::new(0)); //hauria de anar i aqui?¿
     let (thread_Send, main_Recv) = channel();
     let (main_Send, thread_Recv) = channel();
-
-    print!("Starting thread: \n");
-    let thread_mutex_pointer = Arc::clone(&main_mutex_pointer);
-    let _thread = thread::spawn(move || thread_handler(&mut i, thread_Send, thread_Recv, &thread_mutex_pointer));
+    
+    let mut thread_handler = ThreadHandler{
+        i: 0i128,
+        tx: thread_Send,
+        rx: thread_Recv,
+        mutex: Arc::clone(&main_mutex_pointer),
+    };
+    print!("Starting thread...\n");
+    
+    let _thread = thread::spawn(move || thread_handler.run());
 
     loop{
-        println!("ADASD");
         io::stdout().flush().unwrap();
-        //let received = main_Recv.recv().unwrap();
+
         let command = match handle_cmd(){
-            Ok(command) => command,
+            Ok(command) => match command{
+                COLLECT => handle_collect(&main_Recv, &main_Send, &mut points),
+                QUIT => {
+                    println!("Quitting...");
+                    break;
+                },
+                _ => panic!(),
+            },
             Err(e) => panic!("{}", e),
         };
-        println!("command{}", command);
-
-        //print!("\r{} ", received); //https://stackoverflow.com/questions/41536479/how-do-i-split-an-integer-into-individual-digits
+        println!("You have {} points.", points);
+        //https://stackoverflow.com/questions/41536479/how-do-i-split-an-integer-into-individual-digits
         sleep(interval);
-        break;
     }
     println!("DONE!")
 }
